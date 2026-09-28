@@ -61,6 +61,7 @@ app.add_middleware(
 # Request ID and Structured Logging Middleware
 @app.middleware("http")
 async def logging_and_request_id_middleware(request: Request, call_next):
+    """Add request tracing with X-Request-ID headers and structured logging."""
     request_id = request.headers.get("X-Request-ID", str(uuid.uuid4()))
     request.state.request_id = request_id
     start_time = time.time()
