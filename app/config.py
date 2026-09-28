@@ -15,6 +15,7 @@ class Settings(BaseSettings):
     SECRET_KEY: str = os.getenv("SECRET_KEY", "super-secret-eve-healthcare-jwt-key-change-in-prod-1234567890")
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24  # 24 hours
+    JWT_SUBJECT_PREFIX: str = "eve_healthcare"
     
     # Webhook Security
     WEBHOOK_SECRET: str = os.getenv("WEBHOOK_SECRET", "eve_whsec_9938481237a89f81b2c")
