@@ -10,7 +10,7 @@ from app.schemas.auth import UserSignup
 
 
 def hash_password(password: str) -> str:
-    """Hash password using bcrypt with salt."""
+    """Hash password using bcrypt with salt rounds."""
     salt = bcrypt.gensalt()
     return bcrypt.hashpw(password.encode("utf-8"), salt).decode("utf-8")
 
