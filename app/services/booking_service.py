@@ -12,7 +12,11 @@ from app.schemas.booking import BookingCreate
 
 
 def generate_booking_ref() -> str:
-    """Generate human-readable unique booking reference like EVE-20260928-A1B2C3."""
+    """Generate human-readable unique booking reference in format EVE-YYYYMMDD-XXXXXX.
+    
+    Returns:
+        str: Unique booking reference identifier
+    """
     now_str = datetime.now(timezone.utc).strftime("%Y%m%d")
     random_suffix = uuid.uuid4().hex[:6].upper()
     return f"EVE-{now_str}-{random_suffix}"
