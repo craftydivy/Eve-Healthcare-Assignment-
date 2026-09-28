@@ -8,6 +8,8 @@
 
 > A production-grade backend service for **Diagnostic Test Bookings**, **Simulated Payment Processing**, and **Guaranteed Idempotent Webhook Handling**, built for the EVE Healthcare SDE Intern Backend Assignment.
 
+**Candidate**: Divyanshu Shukla
+
 ---
 
 ## 📑 Table of Contents
