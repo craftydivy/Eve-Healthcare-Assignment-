@@ -1,0 +1,684 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>EVE Healthcare — Diagnostic Booking & Simulated Payment Portal</title>
+  <meta name="description" content="Production-ready diagnostic test bookings, simulated payments, and idempotent webhooks backend service." />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+  <!-- Top Navigation Bar -->
+  <header class="navbar">
+    <div class="nav-container">
+      <div class="brand" onclick="switchTab('centres-tab')" style="cursor: pointer;">
+        <div class="brand-logo">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
+          </svg>
+        </div>
+        <div class="brand-info">
+          <span class="brand-name">EVE Healthcare</span>
+          <span class="brand-badge">SDE Backend Service</span>
+        </div>
+      </div>
+
+      <!-- Live Health & Status Indicator -->
+      <div class="system-status" id="systemStatus">
+        <span class="status-dot"></span>
+        <span class="status-text" id="systemStatusText">Connecting...</span>
+      </div>
+
+      <!-- Action Navigation -->
+      <div class="nav-actions">
+        <a href="/docs" target="_blank" class="btn btn-outline" id="swaggerLink">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+          OpenAPI Docs
+        </a>
+
+        <!-- Unauthenticated Auth Buttons -->
+        <div class="auth-buttons" id="authNavButtons">
+          <button class="btn btn-outline" id="navLoginBtn">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg>
+            Sign In
+          </button>
+          <button class="btn btn-primary" id="navSignupBtn">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><line x1="20" y1="8" x2="20" y2="14"/><line x1="23" y1="11" x2="17" y2="11"/></svg>
+            Register
+          </button>
+        </div>
+
+        <!-- Authenticated User Chip -->
+        <div class="user-chip" id="userChip" style="display: none;">
+          <span class="user-avatar" id="userAvatar">A</span>
+          <div class="user-details">
+            <span class="user-name" id="userName">Aarav Sharma</span>
+            <span class="user-role" id="userRole">PATIENT</span>
+          </div>
+          <button class="btn btn-sm btn-ghost" id="quickSwitchBtn" title="Switch User Role">Switch</button>
+          <button class="btn btn-sm btn-ghost text-danger" id="logoutBtn" title="Sign Out">Sign Out</button>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- Hero Banner -->
+  <section class="hero-section">
+    <div class="hero-content">
+      <div class="hero-pill">
+        <span class="pulse-sparkle">✦</span> Production Diagnostic & Payment Engine
+      </div>
+      <h1 class="hero-title">Diagnostic Test Bookings & Simulated Payments</h1>
+      <p class="hero-subtitle">
+        High-reliability backend service featuring JWT authentication, frozen price bookings, state-machine transitions, simulated gateway payments, and <strong>guaranteed idempotent webhooks</strong>.
+      </p>
+
+      <div class="hero-stats">
+        <div class="stat-card">
+          <span class="stat-number" id="statCentresCount">4</span>
+          <span class="stat-label">Accredited Centres</span>
+        </div>
+        <div class="stat-card">
+          <span class="stat-number" id="statTestsCount">8</span>
+          <span class="stat-label">Diagnostic Tests</span>
+        </div>
+        <div class="stat-card">
+          <span class="stat-number" id="statBookingsCount">0</span>
+          <span class="stat-label">Active Bookings</span>
+        </div>
+        <div class="stat-card stat-accent">
+          <span class="stat-number">100%</span>
+          <span class="stat-label">Idempotency Rate</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Main Interactive Tabs Container -->
+  <main class="main-container">
+    <div class="tabs-nav" role="tablist">
+      <button class="tab-btn active" data-tab="centres-tab" id="tabCentres">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+        Diagnostic Centres & Tests
+      </button>
+      <button class="tab-btn" data-tab="book-tab" id="tabBook">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+        Book a Diagnostic Test
+      </button>
+      <button class="tab-btn" data-tab="bookings-tab" id="tabBookings">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+        My Bookings & Payments
+      </button>
+      <button class="tab-btn" data-tab="webhook-tab" id="tabWebhook">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+        Webhook Idempotency Lab
+      </button>
+      <button class="tab-btn" data-tab="auth-tab" id="tabAuth">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+        Account & Login
+      </button>
+      <button class="tab-btn" data-tab="architecture-tab" id="tabArch">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>
+        Architecture & Design
+      </button>
+    </div>
+
+    <!-- TAB 1: CENTRES & TESTS -->
+    <section class="tab-pane active" id="centres-tab">
+      <div class="filters-bar">
+        <div class="search-box">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <input type="text" id="centreSearchInput" placeholder="Search centre by name, address or city..." />
+        </div>
+        <div class="filter-controls">
+          <select id="cityFilterSelect" class="custom-select">
+            <option value="">All Cities</option>
+            <option value="Bengaluru">Bengaluru</option>
+            <option value="New Delhi">New Delhi</option>
+            <option value="Mumbai">Mumbai</option>
+            <option value="Kolkata">Kolkata</option>
+          </select>
+          <button class="btn btn-outline" id="refreshCentresBtn">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 4v6h-6"/><path d="M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+            Refresh
+          </button>
+        </div>
+      </div>
+
+      <!-- Centres Grid -->
+      <div class="centres-grid" id="centresGrid">
+        <div class="loading-state">Loading diagnostic centres...</div>
+      </div>
+    </section>
+
+    <!-- TAB 2: BOOKING FORM -->
+    <section class="tab-pane" id="book-tab">
+      <div class="form-container">
+        <div class="form-card">
+          <div class="form-header">
+            <h2>Book a Diagnostic Test</h2>
+            <p>Select your diagnostic centre and test. The test price is captured and frozen upon booking creation.</p>
+          </div>
+
+          <form id="bookingForm" class="booking-form">
+            <div class="form-row">
+              <div class="form-group">
+                <label for="bookCentreSelect">Diagnostic Centre *</label>
+                <select id="bookCentreSelect" class="form-control" required>
+                  <option value="">Select a centre...</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label for="bookTestSelect">Diagnostic Test *</label>
+                <select id="bookTestSelect" class="form-control" required disabled>
+                  <option value="">Choose centre first...</option>
+                </select>
+              </div>
+            </div>
+
+            <!-- Price Breakdown Banner -->
+            <div class="price-banner" id="priceBanner" style="display: none;">
+              <div class="price-item">
+                <span class="price-title">Captured Test Price:</span>
+                <span class="price-val" id="bannerPrice">₹0.00</span>
+              </div>
+              <div class="price-item">
+                <span class="price-title">Turnaround Time:</span>
+                <span class="price-val" id="bannerTurnaround">24 hours</span>
+              </div>
+              <div class="price-item">
+                <span class="price-title">Sample Type:</span>
+                <span class="price-val" id="bannerSample">Blood</span>
+              </div>
+            </div>
+
+            <div class="form-row">
+              <div class="form-group">
+                <label for="bookDateInput">Appointment Date & Time *</label>
+                <input type="datetime-local" id="bookDateInput" class="form-control" required />
+                <span class="field-hint">Must be in the future and within centre operating hours (07:00 – 20:00).</span>
+              </div>
+              <div class="form-group">
+                <label for="patientNameInput">Patient Full Name *</label>
+                <input type="text" id="patientNameInput" class="form-control" placeholder="e.g. Aarav Sharma" value="Aarav Sharma" required />
+              </div>
+            </div>
+
+            <div class="form-row three-col">
+              <div class="form-group">
+                <label for="patientAgeInput">Patient Age</label>
+                <input type="number" id="patientAgeInput" class="form-control" placeholder="28" min="1" max="120" value="28" />
+              </div>
+              <div class="form-group">
+                <label for="patientGenderSelect">Gender</label>
+                <select id="patientGenderSelect" class="form-control">
+                  <option value="Male">Male</option>
+                  <option value="Female">Female</option>
+                  <option value="Other">Other</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label for="patientPhoneInput">Patient Phone</label>
+                <input type="tel" id="patientPhoneInput" class="form-control" placeholder="+919123456789" value="+919123456789" />
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label for="patientNotesInput">Clinical Notes / Special Requirements</label>
+              <textarea id="patientNotesInput" class="form-control" rows="2" placeholder="e.g. Fasting instructions confirmed, routine health checkup..."></textarea>
+            </div>
+
+            <div class="form-actions">
+              <button type="submit" class="btn btn-primary btn-lg" id="submitBookingBtn">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+                Confirm Diagnostic Booking (PENDING)
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB 3: BOOKINGS & SIMULATED PAYMENTS -->
+    <section class="tab-pane" id="bookings-tab">
+      <div class="bookings-header">
+        <div>
+          <h2>Diagnostic Bookings & Payment Gateway</h2>
+          <p>View booking lifecycles and simulate payment processing via POST /payments/.</p>
+        </div>
+        <button class="btn btn-outline" id="refreshBookingsBtn">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 4v6h-6"/><path d="M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+          Reload Bookings
+        </button>
+      </div>
+
+      <div class="bookings-list" id="bookingsList">
+        <div class="loading-state">Loading your diagnostic bookings...</div>
+      </div>
+    </section>
+
+    <!-- TAB 4: WEBHOOK IDEMPOTENCY LAB -->
+    <section class="tab-pane" id="webhook-tab">
+      <div class="lab-container">
+        <div class="lab-card">
+          <div class="lab-header">
+            <div class="lab-badge">Assignment Requirement #5</div>
+            <h2>Payment Webhook & Idempotency Testing Lab</h2>
+            <p>
+              Test <code>POST /payments/webhook/</code> live. The system guarantees that receiving duplicate events with the same <code>event_id</code> <strong>never duplicates payments</strong>, <strong>never duplicates bookings</strong>, and <strong>does not corrupt booking state</strong>.
+            </p>
+          </div>
+
+          <div class="lab-grid">
+            <!-- Left: Controller -->
+            <div class="lab-controls">
+              <div class="form-group">
+                <label for="webhookBookingSelect">Target Booking for Webhook Event</label>
+                <select id="webhookBookingSelect" class="form-control">
+                  <option value="">Select a booking...</option>
+                </select>
+              </div>
+
+              <div class="form-row">
+                <div class="form-group">
+                  <label for="webhookEventIdInput">Event ID (Unique Provider ID)</label>
+                  <div class="input-with-action">
+                    <input type="text" id="webhookEventIdInput" class="form-control font-mono" value="evt_eve_83726481" />
+                    <button class="btn btn-sm btn-outline" id="regenEventIdBtn" title="Generate New Event ID">New ID</button>
+                  </div>
+                </div>
+
+                <div class="form-group">
+                  <label for="webhookStatusSelect">Provider Status</label>
+                  <select id="webhookStatusSelect" class="form-control">
+                    <option value="SUCCESS">SUCCESS (Confirms Booking)</option>
+                    <option value="FAILED">FAILED (Fails Booking)</option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="form-row">
+                <div class="form-group">
+                  <label for="webhookAmountInput">Amount (₹ INR)</label>
+                  <input type="number" id="webhookAmountInput" class="form-control font-mono" value="350.00" step="0.01" />
+                </div>
+                <div class="form-group">
+                  <label for="webhookTxnIdInput">Transaction ID</label>
+                  <input type="text" id="webhookTxnIdInput" class="form-control font-mono" value="txn_gateway_82910" />
+                </div>
+              </div>
+
+              <div class="action-buttons-group">
+                <button class="btn btn-primary" id="sendWebhookBtn">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+                  1. Send Webhook Event
+                </button>
+
+                <button class="btn btn-danger" id="replayWebhookBtn">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 4v6h6"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
+                  2. Replay Duplicate Event (Test Idempotency)
+                </button>
+
+                <button class="btn btn-outline" id="sendConcurrentWebhooksBtn">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+                  3. Send 3 Concurrent Duplicate Hits
+                </button>
+              </div>
+            </div>
+
+            <!-- Right: Live Inspection Console -->
+            <div class="lab-console">
+              <div class="console-header">
+                <span>Webhook Event Payload & Response Inspector</span>
+                <span class="console-tag" id="lastHttpStatus">HTTP —</span>
+              </div>
+              <pre class="console-body" id="webhookConsoleOutput">// Configure a booking and click "Send Webhook Event" above to inspect request/response payloads live...</pre>
+              
+              <div class="idempotency-proof-card" id="idempotencyProofCard" style="display: none;">
+                <div class="proof-status-icon" id="proofIcon">✓</div>
+                <div class="proof-details">
+                  <div class="proof-title" id="proofTitle">Idempotency Verified!</div>
+                  <div class="proof-desc" id="proofDesc">The duplicate event was safely ignored. Booking status and payments table remained uncorrupted.</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB 5: DEDICATED AUTHENTICATION & LOGIN PAGE -->
+    <section class="tab-pane" id="auth-tab">
+      <div class="form-container">
+        <!-- Active Session Card (if logged in) -->
+        <div class="session-card" id="sessionCard" style="display: none;">
+          <div class="session-header">
+            <span class="session-badge">Active Session</span>
+            <button class="btn btn-sm btn-outline text-danger" id="tabLogoutBtn">Sign Out</button>
+          </div>
+          <div class="session-body">
+            <div class="session-avatar" id="sessionAvatar">A</div>
+            <div class="session-info">
+              <h3 id="sessionName">Aarav Sharma</h3>
+              <p id="sessionEmail">patient@example.com</p>
+              <div class="session-tags">
+                <span class="badge" id="sessionRole">PATIENT</span>
+                <span class="badge badge-success">JWT Verified</span>
+              </div>
+            </div>
+          </div>
+          <div class="session-security-note">
+            <span class="security-badge-icon">🔒</span>
+            <span class="security-text">Session authenticated securely via JWT. Credentials safely managed in session memory.</span>
+          </div>
+        </div>
+
+        <!-- Auth Card (Sign In / Register) -->
+        <div class="form-card" id="authPortalCard">
+          <div class="auth-toggle">
+            <button class="auth-toggle-btn active" id="authPortalToggleLogin">Sign In</button>
+            <button class="auth-toggle-btn" id="authPortalToggleSignup">Create Account</button>
+          </div>
+
+          <!-- SIGN IN FORM -->
+          <div id="authPortalLoginForm">
+            <div class="form-header">
+              <h2>Welcome Back</h2>
+              <p>Sign in with your email and password to access bookings and payments.</p>
+            </div>
+
+            <form id="portalLoginForm">
+              <div class="form-group">
+                <label for="portalLoginEmail">Email Address *</label>
+                <input type="email" id="portalLoginEmail" class="form-control" placeholder="e.g. patient@example.com" value="patient@example.com" required />
+              </div>
+              <div class="form-group">
+                <label for="portalLoginPassword">Password *</label>
+                <input type="password" id="portalLoginPassword" class="form-control" placeholder="••••••••" value="PatientPass123!" required />
+              </div>
+              <div class="form-actions">
+                <button type="submit" class="btn btn-primary btn-lg" id="portalLoginSubmitBtn">
+                  Sign In with JWT
+                </button>
+              </div>
+            </form>
+
+            <div class="demo-logins-section">
+              <span class="demo-title">Or 1-Click Sign In with Demo Accounts:</span>
+              <div class="demo-btn-group">
+                <button type="button" class="btn btn-outline btn-sm" id="quickLoginPatient">
+                  👤 Patient (patient@example.com)
+                </button>
+                <button type="button" class="btn btn-outline btn-sm" id="quickLoginAdmin">
+                  🛡 Admin (admin@evehealthcare.com)
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- SIGN UP / REGISTER FORM -->
+          <div id="authPortalSignupForm" style="display: none;">
+            <div class="form-header">
+              <h2>Create an Account</h2>
+              <p>Register as a patient to book diagnostic tests or as an administrator.</p>
+            </div>
+
+            <form id="portalSignupForm">
+              <div class="form-group">
+                <label for="portalSignupName">Full Name *</label>
+                <input type="text" id="portalSignupName" class="form-control" placeholder="e.g. Priya Sharma" required />
+              </div>
+              <div class="form-group">
+                <label for="portalSignupEmail">Email Address *</label>
+                <input type="email" id="portalSignupEmail" class="form-control" placeholder="e.g. priya@example.com" required />
+              </div>
+              <div class="form-row">
+                <div class="form-group">
+                  <label for="portalSignupPassword">Password * (Min 6 chars)</label>
+                  <input type="password" id="portalSignupPassword" class="form-control" placeholder="••••••••" minlength="6" required />
+                </div>
+                <div class="form-group">
+                  <label for="portalSignupPhone">Phone Number</label>
+                  <input type="tel" id="portalSignupPhone" class="form-control" placeholder="+919876543210" />
+                </div>
+              </div>
+              <div class="form-group">
+                <label for="portalSignupRole">Account Role</label>
+                <select id="portalSignupRole" class="form-control">
+                  <option value="PATIENT">Patient (Book Tests & Simulated Payments)</option>
+                  <option value="ADMIN">Administrator (Manage Centres & Pricing)</option>
+                </select>
+              </div>
+              <div class="form-actions">
+                <button type="submit" class="btn btn-primary btn-lg" id="portalSignupSubmitBtn">
+                  Create Account & Sign In
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB 6: ARCHITECTURE & SYSTEM DESIGN -->
+    <section class="tab-pane" id="architecture-tab">
+      <div class="arch-card">
+        <h2>System Architecture & Edge Case Handling</h2>
+        <p class="arch-intro">
+          Engineered for production resilience, adherence to Clean Architecture principles, and robust state consistency.
+        </p>
+
+        <div class="arch-grid">
+          <div class="feature-box">
+            <div class="feature-icon">🔐</div>
+            <h3>1. Authentication & RBAC</h3>
+            <p>
+              Industry-standard bcrypt password hashing with salt and PyJWT HMAC-SHA256 tokens. Strict user isolation ensures patients can only view and pay for their own bookings, while admin roles can manage catalog offerings.
+            </p>
+          </div>
+
+          <div class="feature-box">
+            <div class="feature-icon">🏥</div>
+            <h3>2. Dynamic Centre-Test Pricing</h3>
+            <p>
+              Many-to-many relationship with <code>CentreTest</code> association table allows each diagnostic centre to configure custom test pricing, availability, and turnaround times. Price is permanently frozen on the <code>Booking</code> entity at creation.
+            </p>
+          </div>
+
+          <div class="feature-box">
+            <div class="feature-icon">📅</div>
+            <h3>3. Booking State Machine</h3>
+            <p>
+              Finite state machine enforces strictly valid state transitions: <code>PENDING</code> ➔ <code>CONFIRMED</code>, <code>PENDING</code> ➔ <code>FAILED</code>, and <code>CANCELLED</code>. Validates appointments are in the future and within operating hours.
+            </p>
+          </div>
+
+          <div class="feature-box">
+            <div class="feature-icon">⚡</div>
+            <h3>4. Webhook Idempotency & Locking</h3>
+            <p>
+              Dedicated <code>webhook_events</code> table indexes <code>event_id</code>. Uses database-level row locking (<code>with_for_update</code>) during execution to prevent race conditions during rapid concurrent duplicate webhooks.
+            </p>
+          </div>
+
+          <div class="feature-box">
+            <div class="feature-icon">🛡️</div>
+            <h3>5. Price & Double-Pay Protection</h3>
+            <p>
+              Both payment simulation and webhook processors strictly enforce that incoming amounts match the frozen booking price, and immediately block double-payment attempts on already confirmed bookings.
+            </p>
+          </div>
+
+          <div class="feature-box">
+            <div class="feature-icon">🚀</div>
+            <h3>6. Caching & Celery Background Tasks</h3>
+            <p>
+              Multi-tiered caching with automatic Redis connection and fallback to in-memory TTL caching. Celery workers handle background email/SMS dispatch and exponential-backoff retries.
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- Dedicated Auth Modal (Sign In / Register Popup) -->
+  <div class="modal-backdrop" id="authModal" style="display: none;">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3 id="authModalTitle">Sign In</h3>
+        <button class="modal-close" id="closeAuthModalBtn">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="auth-toggle">
+          <button class="auth-toggle-btn active" id="modalToggleLogin">Sign In</button>
+          <button class="auth-toggle-btn" id="modalToggleSignup">Create Account</button>
+        </div>
+
+        <!-- Modal Sign In -->
+        <div id="modalLoginForm">
+          <form id="modalLoginFormElement">
+            <div class="form-group">
+              <label for="modalLoginEmail">Email Address *</label>
+              <input type="email" id="modalLoginEmail" class="form-control" placeholder="e.g. patient@example.com" value="patient@example.com" required />
+            </div>
+            <div class="form-group">
+              <label for="modalLoginPassword">Password *</label>
+              <input type="password" id="modalLoginPassword" class="form-control" placeholder="••••••••" value="PatientPass123!" required />
+            </div>
+            <div class="modal-actions">
+              <button type="button" class="btn btn-outline" id="closeAuthModalBtn2">Cancel</button>
+              <button type="submit" class="btn btn-primary" id="modalLoginSubmitBtn">Sign In</button>
+            </div>
+          </form>
+
+          <div class="demo-logins-section">
+            <span class="demo-title">Quick Demo Sign In:</span>
+            <div class="demo-btn-group">
+              <button type="button" class="btn btn-outline btn-sm" id="modalQuickPatient">👤 Demo Patient</button>
+              <button type="button" class="btn btn-outline btn-sm" id="modalQuickAdmin">🛡 Demo Admin</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Modal Sign Up -->
+        <div id="modalSignupForm" style="display: none;">
+          <form id="modalSignupFormElement">
+            <div class="form-group">
+              <label for="modalSignupName">Full Name *</label>
+              <input type="text" id="modalSignupName" class="form-control" placeholder="e.g. Aarav Sharma" required />
+            </div>
+            <div class="form-group">
+              <label for="modalSignupEmail">Email Address *</label>
+              <input type="email" id="modalSignupEmail" class="form-control" placeholder="e.g. aarav@example.com" required />
+            </div>
+            <div class="form-group">
+              <label for="modalSignupPassword">Password * (Min 6 chars)</label>
+              <input type="password" id="modalSignupPassword" class="form-control" placeholder="••••••••" minlength="6" required />
+            </div>
+            <div class="form-group">
+              <label for="modalSignupRole">Role</label>
+              <select id="modalSignupRole" class="form-control">
+                <option value="PATIENT">Patient</option>
+                <option value="ADMIN">Administrator</option>
+              </select>
+            </div>
+            <div class="modal-actions">
+              <button type="button" class="btn btn-outline" id="closeAuthModalBtn3">Cancel</button>
+              <button type="submit" class="btn btn-primary" id="modalSignupSubmitBtn">Register & Sign In</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Payment Modal -->
+  <div class="modal-backdrop" id="paymentModal" style="display: none;">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3>Simulated Payment Processing</h3>
+        <button class="modal-close" id="closePaymentModalBtn">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="payment-summary">
+          <div class="summary-line">
+            <span>Booking Reference:</span>
+            <strong id="modalBookingRef">EVE-XXXX</strong>
+          </div>
+          <div class="summary-line">
+            <span>Test:</span>
+            <span id="modalTestName">Complete Blood Count</span>
+          </div>
+          <div class="summary-line">
+            <span>Payable Amount:</span>
+            <strong class="text-accent" id="modalAmount">₹450.00</strong>
+          </div>
+        </div>
+
+        <form id="paymentForm">
+          <input type="hidden" id="modalBookingId" />
+          <input type="hidden" id="modalRawAmount" />
+
+          <div class="form-group">
+            <label for="paymentMethodSelect">Select Payment Method</label>
+            <select id="paymentMethodSelect" class="form-control">
+              <option value="UPI">UPI (Google Pay / PhonePe / Paytm)</option>
+              <option value="CARD">Credit / Debit Card</option>
+              <option value="NETBANKING">Net Banking</option>
+              <option value="WALLET">Healthcare Wallet</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label for="paymentOutcomeSelect">Simulated Gateway Outcome</label>
+            <select id="paymentOutcomeSelect" class="form-control">
+              <option value="SUCCESS">SUCCESS (Transitions booking to CONFIRMED)</option>
+              <option value="FAILED">FAILED (Transitions booking to FAILED)</option>
+            </select>
+          </div>
+
+          <div class="modal-actions">
+            <button type="button" class="btn btn-outline" id="cancelModalBtn">Cancel</button>
+            <button type="submit" class="btn btn-primary" id="submitPaymentBtn">
+              Process Simulated Payment
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Switch User Modal -->
+  <div class="modal-backdrop" id="switchUserModal" style="display: none;">
+    <div class="modal-card modal-sm">
+      <div class="modal-header">
+        <h3>Switch Demo User Account</h3>
+        <button class="modal-close" id="closeSwitchModalBtn">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p class="modal-desc">Switch between seeded test accounts to test role-based access control:</p>
+        <div class="user-switch-options">
+          <div class="user-option active" id="choosePatient">
+            <div class="opt-role">PATIENT</div>
+            <div class="opt-email">patient@example.com</div>
+            <div class="opt-desc">Can book tests, view personal bookings, and pay.</div>
+          </div>
+          <div class="user-option" id="chooseAdmin">
+            <div class="opt-role">ADMINISTRATOR</div>
+            <div class="opt-email">admin@evehealthcare.com</div>
+            <div class="opt-desc">Can manage centres, update prices, view all bookings.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Notification Toast Container -->
+  <div class="toast-container" id="toastContainer"></div>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>

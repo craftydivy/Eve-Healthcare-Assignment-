@@ -1,0 +1,13 @@
+{
+  "venvPath": "/Users/priyanshu/web/Assignment",
+  "venv": "venv",
+  "include": [
+    "app",
+    "tests",
+    "seed_data.py"
+  ],
+  "extraPaths": [
+    "/Users/priyanshu/web/Assignment",
+    "/Users/priyanshu/web/Assignment/venv/lib/python3.11/site-packages"
+  ]
+}
