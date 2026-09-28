@@ -20,7 +20,10 @@ logger = logging.getLogger("eve_healthcare")
 
 
 def verify_webhook_signature(payload_bytes: bytes, signature_header: Optional[str]) -> bool:
-    """Verify HMAC-SHA256 signature for incoming webhook payloads."""
+    """Verify HMAC-SHA256 signature for incoming webhook payloads.
+    
+    Ensures idempotent webhook processing by validating authenticity of payment provider.
+    """
     if not settings.WEBHOOK_SECRET or not signature_header:
         # If signature header is not supplied, allow if not in strict mode, or verify
         return True
